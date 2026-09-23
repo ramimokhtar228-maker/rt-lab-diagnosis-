@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<title>منصة التشخيص الذكي - RT Labs</title>
+<meta name="theme-color" content="#0D7377">
+<meta name="description" content="منصة دعم القرار الإكلينيكي لمعامل RT — تشخيص احترافي مع قراءة PDF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #F4F7F9;
+    --surface: #FFFFFF;
+    --surface-2: #EEF3F6;
+    --ink: #1A2B3C;
+    --ink-soft: #5A6A7A;
+    --primary: #0D7377;
+    --primary-deep: #095456;
+    --primary-tint: #E6F4F4;
+    --accent: #14919B;
+    --accent-tint: #E0F5F7;
+    --danger: #C0392B;
+    --danger-tint: #FDEDEC;
+    --warn: #D68910;
+    --warn-tint: #FEF5E7;
+    --ok: #1E8449;
+    --ok-tint: #E8F8F0;
+    --border: #D5DEE7;
+    --shadow: 0 1px 3px rgba(26,43,60,0.06), 0 4px 14px rgba(26,43,60,0.05);
+    --sidebar-bg: linear-gradient(180deg, #0D7377 0%, #095456 100%);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+    font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .serif { font-family: 'Amiri', Georgia, serif; }
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 280px; flex-shrink: 0; background: var(--sidebar-bg); color: #EFF8F8;
+    padding: 24px 18px; display: flex; flex-direction: column; gap: 16px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding-top: max(24px, env(safe-area-inset-top));
+  }
+  .brand { display: flex; flex-direction: column; gap: 2px; }
+  .brand h1 { font-size: 20px; margin: 0; color: #fff; font-weight: 700; }
+  .brand span { font-size: 12.5px; color: #A8D5D7; }
+  .new-case-btn {
+    background: #fff; color: var(--primary-deep); border: none; border-radius: 10px;
+    padding: 11px 14px; font-size: 14.5px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: transform .12s, box-shadow .12s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .new-case-btn:hover { transform: translateY(-1px); }
+  .case-list { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; flex: 1; }
+  .case-list-title { font-size: 12px; color: #A8D5D7; margin: 4px 2px; letter-spacing: 0.3px; }
+  .case-item {
+    text-align: right; background: transparent; border: 1px solid transparent; color: #E8F6F6;
+    padding: 9px 11px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13.5px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .case-item:hover { background: rgba(255,255,255,0.1); }
+  .case-item.active { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.25); }
+  .case-item .meta { font-size: 11.5px; color: #A8D5D7; }
+  .status-pill { display: inline-block; font-size: 10.5px; padding: 2px 8px; border-radius: 20px; margin-top: 3px; width: fit-content; }
+  .status-pill.draft { background: rgba(255,255,255,0.15); color: #E8F6F6; }
+  .status-pill.pending { background: #5C4A1A; color: #F5D78E; }
+  .status-pill.reviewed { background: #1A4A35; color: #8FE0B4; }
+  .empty-hint { font-size: 12.5px; color: #8EC4C6; padding: 6px 2px; }
+
+  .main { flex: 1; padding: 28px 36px; max-width: 980px; width: 100%; margin: 0 auto; }
+  .top-note {
+    background: var(--primary-tint); border: 1px solid #B8DEDF; border-radius: 12px;
+    padding: 13px 16px; font-size: 13.5px; color: var(--ink-soft); margin-bottom: 20px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .top-note b { color: var(--primary); }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px 24px; box-shadow: var(--shadow); margin-bottom: 18px;
+  }
+  .card h2 { font-size: 19px; margin: 0 0 3px; color: var(--ink); }
+  .card .sub { color: var(--ink-soft); font-size: 13px; margin-bottom: 16px; }
+  label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 5px; font-weight: 500; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--ink); font-family: inherit; font-size: 14.5px;
+    transition: border-color .15s;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-tint); }
+  textarea { resize: vertical; min-height: 80px; }
+  .row { display: grid; gap: 14px; margin-bottom: 14px; }
+  .row.cols-2 { grid-template-columns: 1fr 1fr; }
+  .row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .field { margin-bottom: 14px; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; min-width: 520px; }
+  th { text-align: right; font-size: 12px; color: var(--ink-soft); font-weight: 600; padding: 9px 10px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  td { padding: 5px; border-bottom: 1px solid var(--border); }
+  td input { border: 1px solid transparent; background: transparent; padding: 7px 8px; }
+  td input:focus { border-color: var(--border); background: var(--surface-2); }
+  .row-remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 17px; padding: 4px 8px; }
+  .add-row-btn {
+    margin-top: 8px; background: var(--primary-tint); color: var(--primary); border: 1px dashed var(--primary);
+    padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600;
+  }
+  .upload-zone {
+    border: 1.5px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center;
+    color: var(--ink-soft); font-size: 13.5px; cursor: pointer; background: var(--surface-2);
+  }
+  .upload-zone:hover { border-color: var(--primary); color: var(--primary); }
+  .upload-zone.busy { opacity: .7; pointer-events: none; }
+  .attachments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .attachment-chip {
+    display: flex; align-items: center; gap: 6px; background: var(--primary-tint); color: var(--primary);
+    padding: 5px 10px; border-radius: 20px; font-size: 12.5px;
+  }
+  .attachment-chip a { color: inherit; text-decoration: underline; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin-top: 4px; }
+  .btn-primary {
+    background: var(--primary); color: #fff; border: none; border-radius: 10px; padding: 11px 20px;
+    font-family: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-primary:hover { background: var(--primary-deep); }
+  .btn-primary:disabled { opacity: .55; cursor: default; }
+  .btn-secondary {
+    background: var(--surface); color: var(--ink-soft); border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 18px; font-family: inherit; font-size: 14px; cursor: pointer;
+  }
+  .btn-secondary:hover { background: var(--surface-2); }
+  .btn-pdf {
+    background: var(--ok); color: #fff; border: none; border-radius: 10px; padding: 11px 18px;
+    font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .btn-pdf:hover { filter: brightness(1.08); }
+  .loading-line { display: flex; align-items: center; gap: 10px; color: var(--primary); font-size: 14px; margin-top: 10px; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--primary-tint); border-top-color: var(--primary); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .report-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  .patient-tag { font-size: 13.5px; color: var(--ink-soft); }
+  .disclaimer {
+    background: var(--warn-tint); border: 1px solid #F0D9A8; border-radius: 10px;
+    padding: 12px 15px; font-size: 13px; color: #7D5A12; margin-bottom: 18px;
+  }
+  .report-section { margin-bottom: 18px; }
+  .report-section h3 { font-size: 16px; margin: 0 0 8px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 7px; }
+  .report-section p, .report-section li { color: var(--ink); font-size: 14.5px; }
+  .report-section ul { margin: 6px 0; padding-inline-start: 20px; }
+  .flag-list { display: flex; flex-direction: column; gap: 6px; }
+  .flag-item { background: var(--danger-tint); color: var(--danger); border-radius: 8px; padding: 8px 12px; font-size: 13.5px; }
+  .abnormal-item { background: var(--warn-tint); color: #8B5E0A; border-radius: 8px; padding: 8px 12px; font-size: 13.5px; margin-bottom: 4px; }
+  .detail-box { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; margin: 8px 0; font-size: 13.5px; line-height: 1.7; }
+  .detail-box b { color: var(--primary-deep); }
+  .sev-high { border-right: 4px solid var(--danger); }
+  .sev-mod { border-right: 4px solid var(--warn); }
+  .sev-low { border-right: 4px solid var(--ok); }
+  .review-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px;
+  }
+  .review-status { font-size: 13.5px; }
+  .review-status.pending { color: var(--warn); }
+  .review-status.reviewed { color: var(--ok); }
+  .small-note { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(26,43,60,0.45); display: flex; align-items: center; justify-content: center;
+    padding: 20px; z-index: 50;
+  }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; max-width: 520px; width: 100%; box-shadow: var(--shadow); max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 18px; margin: 0 0 6px; }
+  .modal .sub { color: var(--ink-soft); font-size: 13px; margin-bottom: 14px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-start; flex-wrap: wrap; }
+  .install-banner {
+    background: var(--accent-tint); border: 1px solid #A8DDE2; border-radius: 10px; padding: 12px 15px;
+    font-size: 13px; color: var(--ink); margin-bottom: 18px; display: none; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .install-banner button { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: 13px; cursor: pointer; }
+
+  .picker { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+  .picker-group { border-top: 1px solid var(--border); }
+  .picker-group:first-child { border-top: none; }
+  .picker-group summary {
+    list-style: none; cursor: pointer; padding: 10px 13px; font-size: 13.5px; font-weight: 600;
+    color: var(--primary); background: var(--primary-tint); display: flex; justify-content: space-between; align-items: center;
+  }
+  .picker-group summary::-webkit-details-marker { display: none; }
+  .picker-group summary .count { font-size: 11.5px; color: var(--ink-soft); font-weight: 500; }
+  .picker-options { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 13px; }
+  .pick-chip {
+    border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+    padding: 5px 11px; border-radius: 20px; font-size: 12.5px; cursor: pointer; font-family: inherit;
+  }
+  .pick-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .selected-chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 12px; }
+  .selected-chip {
+    display: flex; align-items: center; gap: 5px; background: var(--accent-tint); color: var(--primary-deep);
+    padding: 5px 9px 5px 5px; border-radius: 20px; font-size: 12.5px;
+  }
+  .selected-chip button { background: none; border: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; }
+  .manual-add-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .manual-add-row input { flex: 1; }
+  .manual-add-row button { white-space: nowrap; }
+
+  .engine-badge {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--ok-tint); color: var(--ok);
+    padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-bottom: 10px;
+  }
+  .lab-flag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-right: 4px; }
+  .lab-flag.high { background: var(--danger-tint); color: var(--danger); }
+  .lab-flag.low { background: var(--warn-tint); color: var(--warn); }
+  .lab-flag.normal { background: var(--ok-tint); color: var(--ok); }
+
+  .extract-box {
+    margin-top: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; display: none;
+  }
+  .extract-box h4 { margin: 0 0 8px; font-size: 14px; color: var(--primary); }
+  .extract-box pre {
+    white-space: pre-wrap; font-size: 12px; max-height: 160px; overflow-y: auto;
+    background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin: 0 0 10px;
+    font-family: inherit; direction: ltr; text-align: left;
+  }
+  .extract-stats { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+
+  .menu-btn {
+    display: none; position: fixed; top: 12px; right: 12px; z-index: 40;
+    background: var(--primary); color: #fff; border: none; border-radius: 10px;
+    width: 42px; height: 42px; font-size: 20px; cursor: pointer;
+    box-shadow: var(--shadow); align-items: center; justify-content: center;
+  }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 29; }
+
+  @media (max-width: 800px) {
+    .app { flex-direction: column; }
+    .sidebar {
+      position: fixed; right: 0; top: 0; bottom: 0; z-index: 30;
+      transform: translateX(105%); transition: transform .25s ease;
+      width: min(300px, 85vw); box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.open { display: block; }
+    .menu-btn { display: flex; }
+    .main { padding: 16px 14px; padding-top: 60px; }
+    .row.cols-2, .row.cols-3 { grid-template-columns: 1fr; }
+  }
+  @media print {
+    .sidebar, .menu-btn, .install-banner, .actions, .review-bar, .btn-secondary, .btn-primary, .btn-pdf { display: none !important; }
+    .main { max-width: 100%; padding: 0; }
+    .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<button class="menu-btn" id="menuBtn" aria-label="القائمة">☰</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <h1>منصة التشخيص الذكي</h1>
+      <span>معامل RT · دعم القرار الإكلينيكي</span>
+    </div>
+    <button class="new-case-btn" id="newCaseBtn">+ حالة جديدة</button>
+    <div style="flex:1; display:flex; flex-direction:column; min-height:0;">
+      <div class="case-list-title">الحالات المحفوظة</div>
+      <div class="case-list" id="caseList"><div class="empty-hint">جارِ التحميل…</div></div>
+    </div>
+    <button class="btn-secondary" id="settingsBtn" style="color:#E8F6F6; border-color:rgba(255,255,255,0.25); background:transparent;">⚙️ الإعدادات</button>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div id="settingsModal" style="display:none;"></div>
+
+<script>
+/* ========== pdf.js setup ========== */
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+/* ========== Storage & State ========== */
+let cases = {};
+const LS_CASES_KEY = 'rtlabs_cases_v3';
+const LS_SETTINGS_KEY = 'rtlabs_settings_v3';
+let currentCaseId = null;
+let currentDraft = null;
+
+const DEFAULT_SETTINGS = {
+  engine: 'local',
+  groqKey: '',
+  geminiKey: '',
+  labName: 'معامل RT',
+  doctorName: ''
+};
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(LS_SETTINGS_KEY);
+    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
+  } catch(e) { return { ...DEFAULT_SETTINGS }; }
+}
+function saveSettings(s) { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(s)); }
+let settings = loadSettings();
+
+/* ========== Reference ranges ========== */
+const REF_RANGES = {
+  'WBC': { low: 4.0, high: 11.0, unit: 'x10^3/uL', nameAr: 'كرات الدم البيضاء' },
+  'RBC': { low: 4.2, high: 5.9, unit: 'x10^6/uL', nameAr: 'كرات الدم الحمراء', gender: { 'ذكر': {low:4.5,high:5.9}, 'أنثى': {low:4.0,high:5.2} } },
+  'HGB': { low: 12, high: 17, unit: 'g/dL', nameAr: 'الهيموجلوبين', gender: { 'ذكر': {low:13,high:17}, 'أنثى': {low:12,high:15} } },
+  'HCT': { low: 36, high: 50, unit: '%', nameAr: 'الهيماتوكريت', gender: { 'ذكر': {low:40,high:50}, 'أنثى': {low:36,high:46} } },
+  'PLT': { low: 150, high: 450, unit: 'x10^3/uL', nameAr: 'الصفائح الدموية' },
+  'MCV': { low: 80, high: 100, unit: 'fL', nameAr: 'متوسط حجم الخلية' },
+  'MCH': { low: 27, high: 33, unit: 'pg', nameAr: 'متوسط هيموجلوبين الخلية' },
+  'MCHC': { low: 32, high: 36, unit: 'g/dL', nameAr: 'تركيز هيموجلوبين الخلية' },
+  'RDW': { low: 11.5, high: 14.5, unit: '%', nameAr: 'توزيع حجم الخلايا' },
+  'Neutrophils %': { low: 40, high: 70, unit: '%', nameAr: 'العدلات' },
+  'Lymphocytes %': { low: 20, high: 40, unit: '%', nameAr: 'اللمفاويات' },
+  'Monocytes %': { low: 2, high: 10, unit: '%', nameAr: 'الوحيدات' },
+  'Eosinophils %': { low: 1, high: 6, unit: '%', nameAr: 'الحمضات' },
+  'Basophils %': { low: 0, high: 2, unit: '%', nameAr: 'القاعدات' },
+  'Urea': { low: 15, high: 45, unit: 'mg/dL', nameAr: 'اليوريا' },
+  'Creatinine': { low: 0.6, high: 1.3, unit: 'mg/dL', nameAr: 'الكرياتينين', gender: { 'ذكر': {low:0.7,high:1.3}, 'أنثى': {low:0.6,high:1.1} } },
+  'eGFR': { low: 90, high: 999, unit: 'mL/min', nameAr: 'معدل الترشيح الكلوي', invertHigh: true },
+  'Uric acid': { low: 3.5, high: 7.2, unit: 'mg/dL', nameAr: 'حمض اليوريك' },
+  'Na': { low: 135, high: 145, unit: 'mEq/L', nameAr: 'الصوديوم' },
+  'K': { low: 3.5, high: 5.1, unit: 'mEq/L', nameAr: 'البوتاسيوم' },
+  'Cl': { low: 98, high: 107, unit: 'mEq/L', nameAr: 'الكلوريد' },
+  'Ca': { low: 8.5, high: 10.5, unit: 'mg/dL', nameAr: 'الكالسيوم' },
+  'Phosphorus': { low: 2.5, high: 4.5, unit: 'mg/dL', nameAr: 'الفوسفور' },
+  'Mg': { low: 1.7, high: 2.3, unit: 'mg/dL', nameAr: 'المغنيسيوم' },
+  'ALT (SGPT)': { low: 7, high: 56, unit: 'U/L', nameAr: 'إنزيم الكبد ALT' },
+  'AST (SGOT)': { low: 10, high: 40, unit: 'U/L', nameAr: 'إنزيم الكبد AST' },
+  'ALP': { low: 40, high: 129, unit: 'U/L', nameAr: 'الفوسفاتاز القلوي' },
+  'GGT': { low: 8, high: 61, unit: 'U/L', nameAr: 'جاما GT' },
+  'Total Bilirubin': { low: 0.1, high: 1.2, unit: 'mg/dL', nameAr: 'البيليروبين الكلي' },
+  'Direct Bilirubin': { low: 0, high: 0.3, unit: 'mg/dL', nameAr: 'البيليروبين المباشر' },
+  'Indirect Bilirubin': { low: 0.1, high: 1.0, unit: 'mg/dL', nameAr: 'البيليروبين غير المباشر' },
+  'Total Protein': { low: 6.0, high: 8.3, unit: 'g/dL', nameAr: 'البروتين الكلي' },
+  'Albumin': { low: 3.5, high: 5.2, unit: 'g/dL', nameAr: 'الألبومين' },
+  'Globulin': { low: 2.0, high: 3.5, unit: 'g/dL', nameAr: 'الجلوبيولين' },
+  'FBS': { low: 70, high: 100, unit: 'mg/dL', nameAr: 'سكر صائم' },
+  'RBS': { low: 70, high: 140, unit: 'mg/dL', nameAr: 'سكر عشوائي' },
+  '2h PP': { low: 70, high: 140, unit: 'mg/dL', nameAr: 'سكر بعد الأكل بساعتين' },
+  'HbA1c': { low: 4.0, high: 5.6, unit: '%', nameAr: 'السكر التراكمي' },
+  'Total Cholesterol': { low: 0, high: 200, unit: 'mg/dL', nameAr: 'الكوليسترول الكلي' },
+  'Triglycerides': { low: 0, high: 150, unit: 'mg/dL', nameAr: 'الدهون الثلاثية' },
+  'HDL': { low: 40, high: 999, unit: 'mg/dL', nameAr: 'الكوليسترول الجيد HDL', invertHigh: true },
+  'LDL': { low: 0, high: 100, unit: 'mg/dL', nameAr: 'الكوليسترول الضار LDL' },
+  'VLDL': { low: 0, high: 30, unit: 'mg/dL', nameAr: 'VLDL' },
+  'TSH': { low: 0.4, high: 4.0, unit: 'mIU/L', nameAr: 'هرمون الغدة الدرقية TSH' },
+  'FT3': { low: 2.3, high: 4.2, unit: 'pg/mL', nameAr: 'T3 الحر' },
+  'FT4': { low: 0.8, high: 1.8, unit: 'ng/dL', nameAr: 'T4 الحر' },
+  'T3': { low: 80, high: 200, unit: 'ng/dL', nameAr: 'T3 الكلي' },
+  'T4': { low: 5.0, high: 12.0, unit: 'ug/dL', nameAr: 'T4 الكلي' },
+  'CRP': { low: 0, high: 5, unit: 'mg/L', nameAr: 'بروتين سي التفاعلي' },
+  'ESR': { low: 0, high: 20, unit: 'mm/hr', nameAr: 'سرعة الترسيب', gender: { 'ذكر': {low:0,high:15}, 'أنثى': {low:0,high:20} } },
+  'RF': { low: 0, high: 14, unit: 'IU/mL', nameAr: 'عامل الروماتويد' },
+  'PT': { low: 11, high: 13.5, unit: 'sec', nameAr: 'زمن البروثرومبين' },
+  'PTT': { low: 25, high: 35, unit: 'sec', nameAr: 'زمن الثرومبوبلاستين' },
+  'INR': { low: 0.8, high: 1.2, unit: '', nameAr: 'INR' },
+  'D-dimer': { low: 0, high: 0.5, unit: 'ug/mL', nameAr: 'دي-دايمر' },
+  'Vitamin D': { low: 30, high: 100, unit: 'ng/mL', nameAr: 'فيتامين د' },
+  'Vitamin B12': { low: 200, high: 900, unit: 'pg/mL', nameAr: 'فيتامين ب12' },
+  'Ferritin': { low: 30, high: 400, unit: 'ng/mL', nameAr: 'الفيريتين', gender: { 'ذكر': {low:30,high:400}, 'أنثى': {low:15,high:150} } },
+  'Serum Iron': { low: 60, high: 170, unit: 'ug/dL', nameAr: 'حديد الدم' },
+  'TIBC': { low: 250, high: 450, unit: 'ug/dL', nameAr: 'سعة ارتباط الحديد' },
+  'Folic acid': { low: 3, high: 17, unit: 'ng/mL', nameAr: 'حمض الفوليك' },
+  'PSA': { low: 0, high: 4, unit: 'ng/mL', nameAr: 'مستضد البروستاتا' },
+  'Amylase': { low: 30, high: 110, unit: 'U/L', nameAr: 'الأميليز' },
+  'Lipase': { low: 0, high: 60, unit: 'U/L', nameAr: 'الليباز' },
+  'Procalcitonin': { low: 0, high: 0.15, unit: 'ng/mL', nameAr: 'البروكالسيتونين' },
+  'LDH': { low: 140, high: 280, unit: 'U/L', nameAr: 'اللاكتات ديهيدروجينيز' },
+  'CK': { low: 30, high: 200, unit: 'U/L', nameAr: 'كرياتين كيناز' },
+  'Troponin': { low: 0, high: 0.04, unit: 'ng/mL', nameAr: 'التروبونين' },
+  'Homocysteine': { low: 5, high: 15, unit: 'umol/L', nameAr: 'الهوموسيستين' },
+  'Insulin level': { low: 2.6, high: 24.9, unit: 'uU/mL', nameAr: 'الأنسولين' }
+};
+
+/* Aliases for PDF/text parsing */
+const LAB_ALIASES = {
+  'wbc': 'WBC', 'white blood': 'WBC', 'leucocyte': 'WBC', 'leukocyte': 'WBC', 'كرات دم بيضاء': 'WBC', 'كرات الدم البيضاء': 'WBC', 'البيض': 'WBC',
+  'rbc': 'RBC', 'red blood': 'RBC', 'erythrocyte': 'RBC', 'كرات دم حمراء': 'RBC', 'كرات الدم الحمراء': 'RBC',
+  'hgb': 'HGB', 'hb': 'HGB', 'haemoglobin': 'HGB', 'hemoglobin': 'HGB', 'هيموجلوبين': 'HGB', 'الهيموجلوبين': 'HGB', 'هيموغلوبين': 'HGB',
+  'hct': 'HCT', 'pcv': 'HCT', 'hematocrit': 'HCT', 'haematocrit': 'HCT', 'هيماتوكريت': 'HCT',
+  'plt': 'PLT', 'platelet': 'PLT', 'صفائح': 'PLT', 'الصفائح': 'PLT', 'الصفائح الدموية': 'PLT',
+  'mcv': 'MCV', 'mch': 'MCH', 'mchc': 'MCHC', 'rdw': 'RDW',
+  'neutrophil': 'Neutrophils %', 'neut': 'Neutrophils %', 'عدلات': 'Neutrophils %',
+  'lymphocyte': 'Lymphocytes %', 'lymph': 'Lymphocytes %', 'لمفاويات': 'Lymphocytes %',
+  'monocyte': 'Monocytes %', 'eosinophil': 'Eosinophils %', 'basophil': 'Basophils %',
+  'urea': 'Urea', 'bun': 'Urea', 'يوريا': 'Urea', 'اليوريا': 'Urea',
+  'creatinine': 'Creatinine', 'creat': 'Creatinine', 'كرياتينين': 'Creatinine', 'الكرياتينين': 'Creatinine',
+  'egfr': 'eGFR', 'gfr': 'eGFR',
+  'uric': 'Uric acid', 'حمض اليوريك': 'Uric acid',
+  'sodium': 'Na', 'na': 'Na', 'صوديوم': 'Na',
+  'potassium': 'K', 'k': 'K', 'بوتاسيوم': 'K',
+  'chloride': 'Cl', 'cl': 'Cl',
+  'calcium': 'Ca', 'ca': 'Ca', 'كالسيوم': 'Ca',
+  'phosphorus': 'Phosphorus', 'phosphate': 'Phosphorus', 'فوسفور': 'Phosphorus',
+  'magnesium': 'Mg', 'mg': 'Mg',
+  'alt': 'ALT (SGPT)', 'sgpt': 'ALT (SGPT)', 'الات': 'ALT (SGPT)',
+  'ast': 'AST (SGOT)', 'sgot': 'AST (SGOT)',
+  'alp': 'ALP', 'alkaline': 'ALP',
+  'ggt': 'GGT', 'gamma': 'GGT',
+  'bilirubin': 'Total Bilirubin', 't.bil': 'Total Bilirubin', 'tbil': 'Total Bilirubin', 'بيليروبين': 'Total Bilirubin',
+  'direct bil': 'Direct Bilirubin', 'd.bil': 'Direct Bilirubin',
+  'indirect bil': 'Indirect Bilirubin',
+  'protein': 'Total Protein', 'albumin': 'Albumin', 'البومين': 'Albumin', 'الألبومين': 'Albumin',
+  'globulin': 'Globulin',
+  'fbs': 'FBS', 'fasting glucose': 'FBS', 'fasting blood': 'FBS', 'سكر صائم': 'FBS', 'جلوكوز صائم': 'FBS',
+  'rbs': 'RBS', 'random glucose': 'RBS', 'سكر عشوائي': 'RBS',
+  'pp': '2h PP', 'postprandial': '2h PP', '2hpp': '2h PP',
+  'hba1c': 'HbA1c', 'a1c': 'HbA1c', 'glycated': 'HbA1c', 'تراكمي': 'HbA1c', 'السكر التراكمي': 'HbA1c',
+  'cholesterol': 'Total Cholesterol', 'chol': 'Total Cholesterol', 'كوليسترول': 'Total Cholesterol',
+  'triglyceride': 'Triglycerides', 'tg': 'Triglycerides', 'دهون ثلاثية': 'Triglycerides',
+  'hdl': 'HDL', 'ldl': 'LDL', 'vldl': 'VLDL',
+  'tsh': 'TSH', 'ft3': 'FT3', 'ft4': 'FT4', 'free t3': 'FT3', 'free t4': 'FT4',
+  'crp': 'CRP', 'c-reactive': 'CRP',
+  'esr': 'ESR', 'sedimentation': 'ESR', 'سرعة الترسيب': 'ESR',
+  'pt': 'PT', 'ptt': 'PTT', 'aptt': 'PTT', 'inr': 'INR',
+  'd-dimer': 'D-dimer', 'ddimer': 'D-dimer',
+  'vitamin d': 'Vitamin D', 'vit d': 'Vitamin D', '25-oh': 'Vitamin D', 'فيتامين د': 'Vitamin D', 'فيتامين دال': 'Vitamin D',
+  'b12': 'Vitamin B12', 'vitamin b12': 'Vitamin B12', 'فيتامين ب12': 'Vitamin B12',
+  'ferritin': 'Ferritin', 'فيريتين': 'Ferritin', 'الفيريتين': 'Ferritin',
+  'iron': 'Serum Iron', 'serum iron': 'Serum Iron', 'حديد': 'Serum Iron',
+  'tibc': 'TIBC',
+  'folic': 'Folic acid', 'folate': 'Folic acid',
+  'psa': 'PSA',
+  'amylase': 'Amylase', 'lipase': 'Lipase',
+  'procalcitonin': 'Procalcitonin', 'pct': 'Procalcitonin',
+  'ldh': 'LDH', 'ck': 'CK', 'cpk': 'CK',
+  'troponin': 'Troponin', 'trop': 'Troponin', 'تروبونين': 'Troponin'
+};
+
+const SYMPTOMS_BY_SYSTEM = {
+  'عام': ['حمى', 'إرهاق عام', 'فقدان وزن', 'زيادة وزن', 'فقدان شهية', 'تعرق ليلي', 'قشعريرة', 'دوخة عامة', 'ضعف عام'],
+  'القلب والأوعية': ['ألم صدر', 'خفقان', 'ضيق نفس مجهودي', 'تورم بالقدمين', 'زرقان', 'ألم صدر عند المجهود'],
+  'الجهاز التنفسي': ['سعال', 'سعال مصحوب ببلغم', 'سعال دموي', 'ضيق تنفس', 'صفير بالصدر', 'التهاب حلق'],
+  'الجهاز الهضمي': ['ألم بطن', 'غثيان', 'قيء', 'إسهال', 'إمساك', 'انتفاخ', 'حرقان بالمعدة', 'صعوبة بلع', 'نزيف بالبراز', 'يرقان'],
+  'الجهاز البولي والكلى': ['حرقان بالبول', 'كثرة التبول', 'دم بالبول', 'ألم بالخاصرة', 'تورم بالوجه', 'قلة كمية البول'],
+  'الغدد الصماء': ['عطش شديد', 'جوع مفرط', 'تعب مع فقدان وزن', 'عدم تحمل حرارة', 'عدم تحمل برودة', 'رعشة أطراف', 'تساقط شعر'],
+  'الجهاز العصبي': ['صداع', 'دوخة/دوار', 'تنميل أطراف', 'ضعف بطرف', 'تشنجات', 'فقدان وعي', 'اضطراب رؤية'],
+  'العظام والمفاصل': ['ألم مفاصل', 'تورم مفصل', 'ألم عضلي', 'تيبس صباحي', 'ألم أسفل الظهر'],
+  'الجلد': ['طفح جلدي', 'حكة', 'احمرار جلدي', 'تقرحات جلدية'],
+  'الدم والمناعة': ['شحوب', 'كدمات سهلة', 'نزيف متكرر', 'تضخم غدد ليمفاوية', 'التهابات متكررة']
+};
+
+const MEDS_BY_CATEGORY = {
+  'مسكنات ومضادات التهاب': ['Paracetamol', 'Ibuprofen', 'Diclofenac', 'Aspirin'],
+  'مضادات حيوية': ['Amoxicillin', 'Amoxicillin-Clavulanate', 'Azithromycin', 'Ciprofloxacin', 'Cefixime', 'Metronidazole'],
+  'قلب وضغط': ['Amlodipine', 'Atenolol', 'Bisoprolol', 'Losartan', 'Enalapril', 'Furosemide', 'Atorvastatin'],
+  'سكر': ['Metformin', 'Glimepiride', 'Insulin', 'Sitagliptin', 'Empagliflozin'],
+  'جهاز هضمي': ['Omeprazole', 'Esomeprazole', 'Domperidone', 'Mebeverine'],
+  'تنفسي': ['Salbutamol inhaler', 'Montelukast', 'Cetirizine', 'Loratadine'],
+  'غدد صماء': ['Levothyroxine', 'Carbimazole', 'Prednisolone'],
+  'مكملات': ['Vitamin D3', 'Vitamin B12', 'Iron supplement', 'Folic acid', 'Calcium', 'Multivitamin']
+};
+
+const LABS_BY_CATEGORY = {
+  'صورة دم كاملة CBC': ['WBC', 'RBC', 'HGB', 'HCT', 'PLT', 'MCV', 'MCH', 'MCHC', 'RDW', 'Neutrophils %', 'Lymphocytes %', 'Monocytes %', 'Eosinophils %', 'Basophils %'],
+  'وظائف كلى وأملاح': ['Urea', 'Creatinine', 'eGFR', 'Uric acid', 'Na', 'K', 'Cl', 'Ca', 'Phosphorus', 'Mg'],
+  'وظائف كبد': ['ALT (SGPT)', 'AST (SGOT)', 'ALP', 'GGT', 'Total Bilirubin', 'Direct Bilirubin', 'Total Protein', 'Albumin', 'Globulin'],
+  'سكر ودهون': ['FBS', 'RBS', '2h PP', 'HbA1c', 'Total Cholesterol', 'Triglycerides', 'HDL', 'LDL'],
+  'غدة درقية': ['TSH', 'FT3', 'FT4', 'T3', 'T4'],
+  'مناعة والتهابات': ['CRP', 'ESR', 'RF', 'ASOT'],
+  'فيروسات وأمصال': ['HBsAg', 'Anti-HCV', 'HIV Ab', 'Widal test', 'Brucella Ab'],
+  'دلالات أورام': ['AFP', 'CEA', 'CA19-9', 'CA125', 'CA15-3', 'PSA'],
+  'تجلط': ['PT', 'PTT', 'INR', 'D-dimer'],
+  'هرمونات وفيتامينات': ['Vitamin D', 'Vitamin B12', 'Ferritin', 'Serum Iron', 'TIBC', 'Folic acid'],
+  'أخرى': ['Amylase', 'Lipase', 'Procalcitonin', 'LDH', 'CK', 'Troponin']
+};
+
+const $ = (sel, el=document) => el.querySelector(sel);
+const $$ = (sel, el=document) => Array.from(el.querySelectorAll(sel));
+const uid = () => 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+function emptyDraft() {
+  return {
+    patientCode: '', age: '', gender: '',
+    complaint: '', symptomsSelected: [], symptomsDetail: '',
+    labs: [{ test: '', value: '', unit: '', ref: '' }],
+    meds: [{ name: '', dose: '', freq: '' }],
+    attachments: [],
+    extractedText: '',
+    report: null, status: 'draft', createdAt: null, reviewedAt: null
+  };
+}
+
+function loadCasesFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_CASES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+function persistCasesToStorage() {
+  try { localStorage.setItem(LS_CASES_KEY, JSON.stringify(cases)); }
+  catch(e) { alert('تعذر الحفظ محليًا — مساحة التخزين ممتلئة.'); }
+}
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ========== Lab evaluation ========== */
+function parseNum(v) {
+  if (v == null || v === '') return null;
+  const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.\-eE]/g, ''));
+  return isNaN(n) ? null : n;
+}
+function getRefFor(test, gender) {
+  const r = REF_RANGES[test];
+  if (!r) return null;
+  if (r.gender && gender && r.gender[gender]) {
+    return { ...r, low: r.gender[gender].low, high: r.gender[gender].high };
+  }
+  return r;
+}
+function evaluateLab(test, value, gender) {
+  const num = parseNum(value);
+  const ref = getRefFor(test, gender);
+  if (num == null || !ref) return { status: 'unknown', flag: null, severity: 0, pct: null };
+  let status = 'normal';
+  let severity = 0;
+  if (ref.invertHigh) {
+    if (num < ref.low) { status = 'low'; severity = num < ref.low * 0.5 ? 3 : (num < ref.low * 0.75 ? 2 : 1); }
+  } else {
+    if (num < ref.low) {
+      status = 'low';
+      const span = Math.max(ref.low - (ref.low * 0.3), 0.01);
+      severity = num < ref.low - span ? 3 : (num < ref.low - span * 0.5 ? 2 : 1);
+    } else if (num > ref.high) {
+      status = 'high';
+      const span = Math.max(ref.high * 0.5, 0.01);
+      severity = num > ref.high + span ? 3 : (num > ref.high + span * 0.4 ? 2 : 1);
+    }
+  }
+  return {
+    status,
+    flag: status === 'high' ? 'مرتفع' : status === 'low' ? 'منخفض' : 'طبيعي',
+    refText: ref.low + ' – ' + ref.high + (ref.unit ? ' ' + ref.unit : ''),
+    unit: ref.unit,
+    nameAr: ref.nameAr || test,
+    severity,
+    value: num
+  };
+}
+
+/* ========== PDF / text extraction ========== */
+async function extractTextFromPdf(arrayBuffer) {
+  if (!window.pdfjsLib) throw new Error('pdf.js غير محمّل');
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let full = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(it => it.str).join(' ');
+    full += pageText + '\n';
+  }
+  return full.trim();
+}
+
+function resolveLabName(raw) {
+  const s = String(raw).toLowerCase().trim().replace(/\s+/g, ' ');
+  if (LAB_ALIASES[s]) return LAB_ALIASES[s];
+  for (const [alias, canon] of Object.entries(LAB_ALIASES)) {
+    if (s.includes(alias) || alias.includes(s)) return canon;
+  }
+  // direct key match
+  for (const k of Object.keys(REF_RANGES)) {
+    if (k.toLowerCase() === s || k.toLowerCase().includes(s) || s.includes(k.toLowerCase())) return k;
+  }
+  return null;
+}
+
+function parseLabsFromText(text) {
+  if (!text) return [];
+  const found = [];
+  const seen = new Set();
+  const lines = text.replace(/\r/g, '\n').split(/\n+/);
+  const joined = text.replace(/\s+/g, ' ');
+
+  // Pattern: Name ... number (optional unit)
+  const patterns = [
+    /([A-Za-z\u0600-\u06FF][A-Za-z0-9\u0600-\u06FF\s\.\-%\/()]{1,40}?)\s*[:=\-]?\s*([\d]+(?:[.,]\d+)?)\s*([a-zA-Z%\/\^\dµμ]*)?/g
+  ];
+
+  // Line-based parse
+  for (const line of lines) {
+    const m = line.match(/([A-Za-z\u0600-\u06FF][A-Za-z0-9\u0600-\u06FF\s\.\-%\/()]{1,35}?)\s*[:=\-]\s*([\d]+(?:[.,]\d+)?)/);
+    if (m) {
+      const name = resolveLabName(m[1].trim());
+      const val = m[2].replace(',', '.');
+      if (name && !seen.has(name) && parseNum(val) != null) {
+        seen.add(name);
+        const ref = getRefFor(name, currentDraft?.gender || '');
+        found.push({ test: name, value: val, unit: ref ? ref.unit : '', ref: ref ? (ref.low + ' – ' + ref.high) : '' });
+      }
+    }
+  }
+
+  // Global scan with aliases
+  for (const [alias, canon] of Object.entries(LAB_ALIASES)) {
+    if (seen.has(canon)) continue;
+    const re = new RegExp(alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[:=\\-]?\\s*([\\d]+(?:[.,]\\d+)?)', 'i');
+    const m = joined.match(re);
+    if (m) {
+      seen.add(canon);
+      const val = m[1].replace(',', '.');
+      const ref = getRefFor(canon, currentDraft?.gender || '');
+      found.push({ test: canon, value: val, unit: ref ? ref.unit : '', ref: ref ? (ref.low + ' – ' + ref.high) : '' });
+    }
+  }
+  return found;
+}
+
+function applyExtractedLabs(labs) {
+  if (!labs.length) return 0;
+  const d = currentDraft;
+  if (d.labs.length === 1 && !d.labs[0].test) d.labs = [];
+  let added = 0;
+  for (const lab of labs) {
+    const existing = d.labs.find(l => l.test === lab.test);
+    if (existing) {
+      if (!existing.value) { existing.value = lab.value; existing.unit = lab.unit || existing.unit; existing.ref = lab.ref || existing.ref; added++; }
+    } else {
+      d.labs.push(lab);
+      added++;
+    }
+  }
+  renderLabRows(d.labs);
+  renderPicker('labPicker', LABS_BY_CATEGORY, (v) => quickAddLab(v), (v) => d.labs.some(l => l.test === v));
+  return added;
+}
+
+/* ========== Advanced local diagnosis engine ========== */
+function buildLocalReport(d) {
+  const gender = d.gender || '';
+  const age = parseNum(d.age);
+  const abnormal = [];
+  const findings = []; // detailed structured findings
+  const redFlags = [];
+  const differentials = [];
+  const furtherTests = [];
+  const interpretations = [];
+  const nutrition = [];
+  const therapy = [];
+  const systems = {}; // system -> notes
+
+  const labMap = {};
+  (d.labs || []).forEach(l => {
+    if (!l.test) return;
+    const ev = evaluateLab(l.test, l.value, gender);
+    labMap[l.test] = { ...l, eval: ev };
+    if (ev.status === 'high' || ev.status === 'low') {
+      abnormal.push({
+        test: l.test, value: l.value, unit: l.unit || ev.unit, flag: ev.flag,
+        ref: ev.refText, nameAr: ev.nameAr, severity: ev.severity
+      });
+    }
+  });
+
+  const L = (k) => labMap[k];
+  const val = (k) => L(k) ? parseNum(L(k).value) : null;
+  const st = (k) => L(k)?.eval?.status;
+  const sev = (k) => L(k)?.eval?.severity || 0;
+
+  function addDiff(x) { if (x && !differentials.includes(x)) differentials.push(x); }
+  function addTest(x) { if (x && !furtherTests.includes(x) && !labMap[x]) furtherTests.push(x); }
+  function addFlag(x) { if (x && !redFlags.includes(x)) redFlags.push(x); }
+  function addSys(sys, note) {
+    if (!systems[sys]) systems[sys] = [];
+    systems[sys].push(note);
+  }
+
+  // ===== Hematology =====
+  if (st('HGB') === 'low') {
+    const h = val('HGB');
+    let grade = h < 7 ? 'شديد' : h < 10 ? 'متوسط' : 'خفيف';
+    interpretations.push('انخفاض الهيموجلوبين (' + h + ' جم/دل) = فقر دم ' + grade + '.');
+    addSys('الدم', 'فقر دم درجة ' + grade + ' (HGB=' + h + ')');
+    if (h < 7) addFlag('فقر دم شديد (هيموجلوبين < 7) — تقييم عاجل وإمكانية نقل دم حسب الحالة السريرية');
+    if (st('MCV') === 'low') {
+      interpretations.push('MCV منخفض: فقر دم صغير الكريات — الأشيع نقص الحديد أو ثلاسيميا.');
+      addDiff('فقر دم بنقص الحديد');
+      addDiff('ثلاسيميا صغرى (يحتاج Hemoglobin electrophoresis عند الشك)');
+      addTest('Ferritin'); addTest('Serum Iron'); addTest('TIBC'); addTest('Peripheral blood film');
+      if (st('Ferritin') === 'low' || st('Serum Iron') === 'low') {
+        interpretations.push('مخزون/حديد منخفض يؤكد نقص الحديد.');
+        addDiff('نقص حديد مؤكد');
+        therapy.push('بعد استبعاد النزيف المزمن: تعويض حديد فموي (مثل ferrous sulfate) مع فيتامين C، ومتابعة السبب (دورة غزيرة، قرح، سوء امتصاص).');
+        nutrition.push('لحوم حمراء، كبدة، بقوليات مع مصدر فيتامين C. تجنب الشاي/القهوة مع الوجبات.');
+      } else if (!L('Ferritin')) {
+        addTest('Ferritin');
+      }
+      if (st('RDW') === 'high') interpretations.push('RDW مرتفع يدعم نقص حديد حديث أو مختلط.');
+    } else if (st('MCV') === 'high') {
+      interpretations.push('MCV مرتفع: فقر دم كبير الكريات — نقص ب12/فولات أو أمراض كبد/نخاع/قصور درقي.');
+      addDiff('فقر دم بنقص فيتامين ب12 أو حمض الفوليك');
+      addDiff('فقر دم كبير الكريات لأسباب كبدية أو نخاعية');
+      addTest('Vitamin B12'); addTest('Folic acid'); addTest('Peripheral blood film'); addTest('Reticulocyte count');
+      if (st('Vitamin B12') === 'low') {
+        addDiff('نقص فيتامين ب12 مؤكد');
+        therapy.push('تعويض ب12 (فموي أو حقن حسب السبب والامتصاص) بعد تقييم السبب (نظام غذائي، سوء امتصاص، عامل داخلي).');
+      }
+    } else {
+      interpretations.push('MCV طبيعي أو غير متوفر: فقر دم سوي الكريات — قد يكون مزمنًا أو انحلاليًا أو حاد النزف.');
+      addDiff('فقر دم سوي الكريات (مرض مزمن / انحلال / نزف حاد)');
+      addTest('MCV'); addTest('Ferritin'); addTest('Reticulocyte count'); addTest('Peripheral blood film');
+    }
+  }
+
+  if (st('WBC') === 'high') {
+    interpretations.push('ارتفاع كرات الدم البيضاء (' + val('WBC') + ') يشير لعدوى أو التهاب أو إجهاد أو تكاثر دموي.');
+    addSys('المناعة', 'كثرة كريات بيضاء');
+    if (st('Neutrophils %') === 'high') {
+      interpretations.push('غلبة عدلات: يدعم عدوى بكتيرية حادة.');
+      addDiff('عدوى بكتيرية حادة');
+    }
+    if (st('Lymphocytes %') === 'high') {
+      interpretations.push('غلبة لمفاويات: يميل لعدوى فيروسية أو حالات لمفاوية.');
+      addDiff('عدوى فيروسية');
+    }
+    if (st('Eosinophils %') === 'high') {
+      interpretations.push('ارتفاع الحمضات: حساسية أو طفيليات أو بعض الأمراض الجلدية/الرئوية.');
+      addDiff('فرط حمضات (حساسية/طفيليات)');
+    }
+    addTest('CRP'); addTest('ESR');
+    if (val('WBC') > 30) addFlag('ارتفاع شديد جدًا في WBC — استبعاد تفاعل ليوكيموي أو مرض تكاثري');
+  }
+  if (st('WBC') === 'low') {
+    interpretations.push('نقص كريات بيضاء — فيروسي أو دوائي أو نخاعي أو مناعي.');
+    addDiff('نقص كريات بيضاء');
+    addSys('المناعة', 'نقص كريات بيضاء');
+    if (val('WBC') < 2) addFlag('نقص شديد في WBC يزيد خطر العدوى الانتهازية — تقييم عاجل مع الحمى');
+  }
+  if (st('PLT') === 'low') {
+    interpretations.push('نقص صفائح (' + val('PLT') + ') يزيد خطر النزيف.');
+    addDiff('نقص صفائح دموية');
+    if (val('PLT') < 50) addFlag('صفائح < 50 ألف — خطر نزيف، يحتاج تقييمًا عاجلاً');
+    if (val('PLT') < 20) addFlag('صفائح < 20 ألف — خطر نزيف تلقائي خطير');
+  }
+  if (st('PLT') === 'high') {
+    interpretations.push('كثرة صفائح — غالبًا تفاعلية (التهاب/حديد/بعد جراحة) وأحيانًا أولية.');
+    addDiff('كثرة صفائح (تفاعلية أو أولية)');
+  }
+
+  // Inflammation
+  if (st('CRP') === 'high') {
+    const c = val('CRP');
+    interpretations.push('CRP مرتفع (' + c + ') = نشاط التهابي/عدوى. القيم العالية جدًا تدعم عدوى بكتيرية.');
+    addSys('الالتهاب', 'CRP مرتفع');
+    addDiff('حالة التهابية أو عدوى نشطة');
+    if (c > 50) interpretations.push('CRP > 50 ملجم/لتر غالبًا عدوى بكتيرية معتبرة.');
+  }
+  if (st('ESR') === 'high') {
+    interpretations.push('سرعة ترسيب مرتفعة — التهاب حاد أو مزمن أو أنيميا أو حمل.');
+    addSys('الالتهاب', 'ESR مرتفع');
+  }
+  if (st('Procalcitonin') === 'high') {
+    interpretations.push('بروكالسيتونين مرتفع يدعم عدوى بكتيرية جهازية.');
+    addDiff('عدوى بكتيرية محتملة (PCT مرتفع)');
+    if (val('Procalcitonin') > 2) addFlag('PCT مرتفع بشكل ملحوظ — تقييم إنتان');
+  }
+
+  // Diabetes
+  const fbsV = val('FBS'), a1cV = val('HbA1c'), rbsV = val('RBS');
+  let diabetesNoted = false;
+  if (a1cV != null) {
+    if (a1cV >= 6.5) {
+      interpretations.push('HbA1c = ' + a1cV + '% (≥6.5) وفق معايير التشخيص: داء سكري.');
+      addDiff('داء السكري (HbA1c ≥ 6.5%)');
+      diabetesNoted = true;
+      if (a1cV >= 9) addFlag('سكر تراكمي مرتفع جدًا — يحتاج ضبطًا عاجلاً لتجنب المضاعفات الحادة');
+      if (a1cV >= 7) therapy.push('هدف شائع HbA1c < 7% لمعظم البالغين (يُفرد حسب العمر والمضاعفات). ميتفورمين خط أول شائع عند عدم وجود موانع.');
+    } else if (a1cV >= 5.7) {
+      interpretations.push('HbA1c = ' + a1cV + '% (5.7–6.4): ما قبل السكري.');
+      addDiff('ما قبل السكري');
+      diabetesNoted = true;
+      therapy.push('تعديل نمط الحياة (وزن، نشاط، تقليل سكريات بسيطة) يؤخر أو يمنع التحول لسكري.');
+    }
+  }
+  if (fbsV != null) {
+    if (fbsV >= 126) {
+      interpretations.push('سكر صائم = ' + fbsV + ' (≥126): معيار تشخيصي للسكري (يحتاج تأكيدًا حسب السياق).');
+      addDiff('داء السكري (سكر صائم ≥ 126)');
+      diabetesNoted = true;
+    } else if (fbsV >= 100) {
+      interpretations.push('سكر صائم = ' + fbsV + ' (100–125): اختلال سكر صائم / ما قبل السكري.');
+      addDiff('اختلال سكر الصائم');
+      diabetesNoted = true;
+    }
+  }
+  if (rbsV != null && rbsV >= 200) {
+    interpretations.push('سكر عشوائي = ' + rbsV + ' مع أعراض كلاسيكية يدعم تشخيص السكري.');
+    addDiff('داء السكري (سكر عشوائي ≥ 200 مع أعراض)');
+    diabetesNoted = true;
+  }
+  if (diabetesNoted) {
+    addSys('التمثيل الغذائي', 'اضطراب جلوكوز');
+    addTest('HbA1c');
+    furtherTests.push('ميكروألبومين البول');
+    furtherTests.push('فحص قاع العين');
+    nutrition.push('تقليل السكريات البسيطة والنشويات المكررة، زيادة الألياف والخضروات، توزيع الوجبات، ضبط الوزن.');
+  }
+
+  // Kidney
+  if (st('Creatinine') === 'high' || st('Urea') === 'high' || st('eGFR') === 'low') {
+    interpretations.push('اضطراب وظائف الكلى: ارتفاع كرياتينين/يوريا أو انخفاض eGFR.');
+    addDiff('قصور كلوي (حاد أو مزمن) — تحديد المرحلة والسبب');
+    addSys('الكلى', 'اعتلال وظائف كلى');
+    addTest('eGFR'); addTest('تحليل بول كامل');
+    furtherTests.push('نسبة ألبومين/كرياتينين بول');
+    furtherTests.push('سونار على البطن والكلى');
+    nutrition.push('تقييد ملح وبروتين حسب توجيه الطبيب/أخصائي التغذية. الحذر من مضادات الالتهاب ومسكنات معينة.');
+    if (val('Creatinine') > 3 || (val('eGFR') != null && val('eGFR') < 30)) {
+      addFlag('قصور كلوي متقدم مخبريًا — تقييم متخصص قريب');
+    }
+  }
+  if (st('K') === 'high') {
+    addFlag('ارتفاع البوتاسيوم — خطر اضطراب نظم؛ مراجعة عاجلة خاصة مع قيم > 6');
+    addDiff('فرط بوتاسيوم الدم');
+    addSys('الكلى', 'فرط بوتاسيوم');
+  }
+  if (st('K') === 'low') {
+    interpretations.push('نقص بوتاسيوم قد يسبب ضعفًا عضليًا واضطراب نظم.');
+    addDiff('نقص بوتاسيوم الدم');
+  }
+  if (st('Na') === 'low') {
+    interpretations.push('نقص صوديوم — يحتاج تقييم الحجم والسبب (قلبي، كبدي، SIADH، مدرات...).');
+    addDiff('نقص صوديوم الدم');
+    if (val('Na') < 125) addFlag('نقص صوديوم شديد — خطر عصبي');
+  }
+  if (st('Uric acid') === 'high') {
+    interpretations.push('ارتفاع حمض اليوريك — نقرس أو متلازمة أيضية أو قصور كلى أو أدوية.');
+    addDiff('فرط حمض يوريك الدم');
+    nutrition.push('تقليل أحشاء ولحوم حمراء ومشروبات سكرية؛ شرب سوائل كافية.');
+  }
+
+  // Liver
+  if (st('ALT (SGPT)') === 'high' || st('AST (SGOT)') === 'high') {
+    const alt = val('ALT (SGPT)'), ast = val('AST (SGOT)');
+    interpretations.push('ارتفاع إنزيمات الكبد (ALT/AST).');
+    addDiff('إصابة كبدية (دهنية، فيروسية، دوائية، مناعية، كحولية...)');
+    addSys('الكبد', 'ارتفاع إنزيمات كبد');
+    addTest('HBsAg'); addTest('Anti-HCV');
+    furtherTests.push('سونار على البطن');
+    if (alt && ast && ast > alt * 1.5) interpretations.push('AST أعلى من ALT قد يميل لكحولي أو تشمعي في بعض السياقات.');
+    if ((alt && alt > 200) || (ast && ast > 200)) interpretations.push('ارتفاع ملحوظ في الإنزيمات — يستدعي استكمال سريع للفحوصات.');
+    nutrition.push('تجنب الكحول والجرعات العالية من الباراسيتامول؛ وزن صحي.');
+  }
+  if (st('Total Bilirubin') === 'high') {
+    interpretations.push('ارتفاع بيليروبين — يرقان مخبري؛ التفريق مباشر/غير مباشر مهم.');
+    addDiff('يرقان (انحلالي أو كبدي أو انسدادي)');
+    addTest('Direct Bilirubin');
+    if (st('ALP') === 'high' || st('GGT') === 'high') {
+      interpretations.push('ALP/GGT مرتفعان مع بيليروبين يميل لنمط ركودي/انسدادي.');
+      addDiff('يرقان ركودي أو انسدادي');
+    }
+  }
+  if (st('Albumin') === 'low') {
+    interpretations.push('انخفاض ألبومين — مرض مزمن، كبد، كلى (نفروز)، سوء تغذية.');
+    addDiff('نقص ألبومين');
+  }
+
+  // Thyroid
+  if (st('TSH') === 'high') {
+    interpretations.push('TSH مرتفع: قصور درقي أولي حتى يثبت العكس.');
+    addDiff('قصور الغدة الدرقية');
+    addSys('الغدد الصماء', 'قصور درقي محتمل');
+    addTest('FT4'); addTest('Anti-TPO');
+    therapy.push('بعد التأكيد: ليفوثيروكسين بجرعة فردية مع متابعة TSH.');
+  }
+  if (st('TSH') === 'low') {
+    interpretations.push('TSH منخفض: فرط نشاط أو تثبيط خارجي أو مركزي.');
+    addDiff('فرط نشاط الغدة الدرقية أو تثبيط TSH');
+    addTest('FT3'); addTest('FT4');
+  }
+
+  // Lipids
+  if (st('Total Cholesterol') === 'high' || st('LDL') === 'high' || st('Triglycerides') === 'high') {
+    interpretations.push('اضطراب دهون الدم يزيد الخطر القلبي الوعائي.');
+    addDiff('فرط دهون الدم');
+    addSys('القلب والأوعية', 'اضطراب دهون');
+    nutrition.push('تقليل دهون مشبعة ومهدرجة؛ أوميغا-3؛ ألياف؛ نشاط بدني.');
+    therapy.push('تقييم خطر ASCVD؛ ستاتين عند وجود مؤشر حسب الإرشادات.');
+  }
+  if (st('HDL') === 'low') {
+    interpretations.push('HDL منخفض — عامل خطر وعائي؛ يتحسن بالرياضة والإقلاع عن التدخين.');
+  }
+
+  // Vitamins / iron stores
+  if (st('Vitamin D') === 'low') {
+    const vd = val('Vitamin D');
+    interpretations.push('نقص فيتامين د (' + vd + ' نانوغرام/مل).');
+    addDiff('نقص فيتامين د');
+    therapy.push('تعويض فيتامين د جرعات علاجية ثم صيانة حسب المستوى ووزن الجسم بعد استشارة الطبيب.');
+    nutrition.push('تعرض معتدل للشمس؛ أسماك دهنية؛ أطعمة مدعمة.');
+  }
+  if (st('Vitamin B12') === 'low') {
+    interpretations.push('نقص ب12 — فقر دم كبير الكريات واعتلال أعصاب محتمل.');
+    addDiff('نقص فيتامين ب12');
+  }
+  if (st('Ferritin') === 'low') {
+    interpretations.push('فيريتين منخفض = نقص مخزون حديد.');
+    addDiff('نقص مخزون الحديد');
+  }
+  if (st('Ferritin') === 'high' && st('HGB') !== 'low') {
+    interpretations.push('فيريتين مرتفع قد يكون طورًا حادًا أو فرط حديد أو متلازمة أيضية.');
+  }
+
+  // Cardiac / acute
+  if (st('Troponin') === 'high') {
+    addFlag('ارتفاع تروبونين — إصابة عضلة قلب؛ تقييم قلبي عاجل');
+    addDiff('متلازمة تاجية حادة / إصابة عضلة القلب');
+    addSys('القلب والأوعية', 'تروبونين مرتفع');
+  }
+  if (st('D-dimer') === 'high') {
+    interpretations.push('دي-دايمر مرتفع غير نوعي (خثار، التهاب، جراحة، حمل...)؛ يُفسر مع الاحتمال السريري.');
+    addDiff('ارتفاع D-dimer — استبعاد خثار حسب السياق');
+  }
+  if (st('PSA') === 'high') {
+    interpretations.push('PSA مرتفع — تضخم أو التهاب أو ورم بروستاتا؛ يحتاج تقييم مسالك.');
+    addDiff('ارتفاع PSA (بروستاتا)');
+    furtherTests.push('Free PSA');
+    furtherTests.push('إحالة مسالك بولية');
+  }
+
+  // Coagulation
+  if (st('INR') === 'high' || st('PT') === 'high') {
+    interpretations.push('تمدد PT/INR — نقص فيتامين K، كبد، مضادات تخثر.');
+    addDiff('اضطراب تخثر (مسار خارجي)');
+    if (val('INR') > 3.5) addFlag('INR مرتفع بشكل ملحوظ — خطر نزيف');
+  }
+
+  // Symptoms correlation
+  const syms = ((d.symptomsSelected || []).join(' ') + ' ' + (d.complaint || '') + ' ' + (d.symptomsDetail || '')).toLowerCase();
+  if (/حمى|سخون|قشعريرة/.test(syms)) {
+    if (!L('WBC')) addTest('WBC');
+    if (!L('CRP')) addTest('CRP');
+    addDiff('متلازمة حموية — تحديد البؤرة');
+  }
+  if (/عطش|تبول كثير|جوع/.test(syms) && !diabetesNoted) {
+    addTest('FBS'); addTest('HbA1c');
+  }
+  if (/يرقان|اصفرار/.test(syms)) {
+    addTest('Total Bilirubin'); addTest('ALT (SGPT)'); addTest('AST (SGOT)');
+  }
+  if (/ألم صدر|ضيق نفس/.test(syms)) {
+    addTest('Troponin');
+    furtherTests.push('ECG');
+    if (/ألم صدر/.test(syms)) addFlag('ألم صدر — استبعاد سبب قلبي عند وجود عوامل خطر');
+  }
+  if (/إرهاق|ضعف|شحوب/.test(syms) && !L('HGB')) addTest('HGB');
+
+  // Age/gender specific
+  if (gender === 'ذكر' && age != null && age >= 50 && !L('PSA')) {
+    furtherTests.push('PSA (حسب المناقشة مع المريض)');
+  }
+
+  const uniq = (arr) => [...new Set((arr || []).filter(Boolean))];
+  const diffList = uniq(differentials);
+  const testList = uniq(furtherTests);
+  const flagList = uniq(redFlags);
+
+  // Severity summary
+  const maxSev = abnormal.reduce((m, a) => Math.max(m, a.severity || 0), 0);
+  let severityLabel = 'غير محدد';
+  if (abnormal.length === 0 && (d.labs || []).some(l => l.test && l.value)) severityLabel = 'النتائج ضمن المعدل المتاح';
+  else if (maxSev >= 3 || flagList.length) severityLabel = 'يحتاج انتباهًا عاجلاً أو قريبًا';
+  else if (maxSev === 2) severityLabel = 'تغيرات متوسطة الأهمية';
+  else if (maxSev === 1) severityLabel = 'تغيرات خفيفة';
+  else severityLabel = 'بيانات محدودة';
+
+  // Patient summary
+  let summary = 'تم تحليل الحالة بواسطة محرك معامل RT المتقدم. ';
+  if (abnormal.length) {
+    summary += 'وُجدت قيم خارج المعدل في: ' + abnormal.map(a => (a.nameAr || a.test)).join('، ') + '. ';
+  } else if ((d.labs || []).some(l => l.test && l.value)) {
+    summary += 'النتائج المخبرية المدخلة ضمن المعدلات المرجعية المتاحة. ';
+  } else {
+    summary += 'لم تُدخل قيم تحاليل كافية؛ التفسير يعتمد على الأعراض فقط وهو محدود. ';
+  }
+  summary += 'درجة الأهمية التقديرية: ' + severityLabel + '. ';
+  summary += 'هذا ملخص مساعد للمريض وليس تشخيصًا نهائيًا — القرار للطبيب المعالج.';
+
+  // Clinical narrative
+  let clinical = '';
+  if (Object.keys(systems).length) {
+    clinical += 'ملخص حسب الأجهزة: ';
+    for (const [sys, notes] of Object.entries(systems)) {
+      clinical += '【' + sys + '】 ' + notes.join('؛ ') + '. ';
+    }
+  }
+  clinical += interpretations.length ? interpretations.join(' ') : 'لا يوجد تفسير مخبري تفصيلي إضافي من البيانات الحالية.';
+  if (!(d.labs || []).some(l => l.test && l.value)) {
+    clinical = 'لم تُدخل نتائج رقمية كافية. أرفق تقرير PDF أو أدخل القيم يدويًا للحصول على تحليل أدق. ' + clinical;
+  }
+
+  let therapeutic = therapy.length ? therapy.join(' ') : 'لا توصية دوائية محددة من البيانات وحدها.';
+  therapeutic += ' أي علاج أو تعديل جرعات يجب أن يتم تحت إشراف الطبيب.';
+
+  let nutritional = nutrition.length ? nutrition.join(' ') : 'نظام غذائي متوازن، سوائل كافية، ونشاط مناسب للحالة.';
+
+  // Detailed findings blocks
+  const detailBlocks = abnormal
+    .sort((a, b) => (b.severity || 0) - (a.severity || 0))
+    .map(a => ({
+      title: (a.nameAr || a.test) + ' = ' + a.value + ' ' + (a.unit || ''),
+      text: a.flag + ' (المرجع: ' + (a.ref || '—') + '). ' + (a.severity >= 3 ? 'انحراف شديد.' : a.severity === 2 ? 'انحراف متوسط.' : 'انحراف خفيف.'),
+      severity: a.severity
+    }));
+
+  return {
+    summary_for_patient: summary,
+    clinical_interpretation: clinical,
+    differential_diagnosis: diffList.length ? diffList : ['لا تشخيص تفريقي محدد — يُستكمل التقييم سريريًا'],
+    recommended_further_tests: testList.length ? testList : ['متابعة سريرية حسب الأعراض'],
+    red_flags: flagList,
+    therapeutic_guidance: therapeutic,
+    nutritional_guidance: nutritional,
+    lab_evaluation: abnormal,
+    detail_blocks: detailBlocks,
+    severity_label: severityLabel,
+    systems_summary: systems,
+    engine: 'محرك RT المتقدم (قواعد طبية متعددة الأنظمة — مجاني)',
+    generated_at: new Date().toISOString()
+  };
+}
+
+/* ========== AI engines ========== */
+async function callGroq(promptText) {
+  const key = settings.groqKey;
+  if (!key) throw Object.assign(new Error('no_key'), { code: 'no_key' });
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.15,
+      max_tokens: 3500,
+      messages: [
+        { role: 'system', content: 'أنت استشاري باثولوجيا إكلينيكية وتفسير تحاليل. أجب JSON فقط بالعربية الطبية الدقيقة.' },
+        { role: 'user', content: promptText }
+      ]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw Object.assign(new Error(err?.error?.message || 'groq_failed'), { code: res.status });
+  }
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+async function callGemini(promptText) {
+  const key = settings.geminiKey;
+  if (!key) throw Object.assign(new Error('no_key'), { code: 'no_key' });
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: promptText }] }],
+      generationConfig: { temperature: 0.15, maxOutputTokens: 3500 }
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw Object.assign(new Error(err?.error?.message || 'gemini_failed'), { code: res.status });
+  }
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+  return JSON.parse(text.replace(/```json|```/g, '').trim());
+}
+
+function buildAIPrompt(d) {
+  const labsText = d.labs.filter(l => l.test).map(l => {
+    const ev = evaluateLab(l.test, l.value, d.gender);
+    return '- ' + l.test + ': ' + l.value + ' ' + (l.unit || '') + (ev.refText ? ' (مرجع: ' + ev.refText + ')' : '') + (ev.flag ? ' [' + ev.flag + (ev.severity ? ' درجة' + ev.severity : '') + ']' : '');
+  }).join('\n') || 'لا توجد تحاليل';
+  const medsText = d.meds.filter(m => m.name).map(m => '- ' + m.name + ' ' + m.dose + ' ' + m.freq).join('\n') || 'لا توجد أدوية';
+  const extractHint = d.extractedText ? ('\nنص مستخرج من التقرير المرفق (مقتطف):\n' + d.extractedText.slice(0, 2500)) : '';
+  return `أنت مساعد لطبيب باثولوجيا إكلينيكية في معمل تحاليل. قدّم تقرير دعم قرار مفصّل ودقيق.
+أجب JSON فقط بالمفاتيح التالية (نصوص عربية):
+{
+ "summary_for_patient": "شرح مبسط وواضح للمريض بلغة غير متخصصة مع ذكر أهم النتائج",
+ "clinical_interpretation": "تفسير إكلينيكي مفصّل للطبيب: ربط الأعراض بالتحاليل، الأنماط (مثل نوع فقر الدم)، درجة الخطورة، والسببية المحتملة",
+ "differential_diagnosis": ["تشخيص تفريقي مرتب من الأرجح للأقل مع سبب وجيز لكل بند"],
+ "recommended_further_tests": ["فحوصات مقترحة مرتبة حسب الأولوية مع تبرير موجز"],
+ "red_flags": ["علامات خطر أو ما يستدعي تدخلاً عاجلاً إن وجدت"],
+ "therapeutic_guidance": "توجيهات علاجية مبدئية مفصّلة (ليست وصفة نهائية) مع بدائل وموانع عامة",
+ "nutritional_guidance": "توصيات غذائية عملية ومفصّلة مرتبطة بالنتائج"
+}
+السن: ${d.age || 'غير محدد'} | النوع: ${d.gender || 'غير محدد'}
+الشكوى: ${d.complaint || '—'}
+الأعراض: ${(d.symptomsSelected||[]).join('، ') || 'لا يوجد'}
+ملاحظات: ${d.symptomsDetail || 'لا يوجد'}
+التحاليل:
+${labsText}
+الأدوية:
+${medsText}
+${extractHint}
+قواعد: لا تخمّن أرقامًا غير موجودة. إن نقصت البيانات صرّح بذلك. فرّق بين تغيير خفيف ومتوسط وشديد. اربط النتائج ببعضها (مثال: HGB+MCV+Ferritin).`;
+}
+
+/* ========== Init & UI ========== */
+async function init() {
+  cases = loadCasesFromStorage();
+  renderCaseList();
+  currentDraft = emptyDraft();
+  renderMainForm();
+  $('#newCaseBtn').addEventListener('click', () => {
+    currentCaseId = null;
+    currentDraft = emptyDraft();
+    renderMainForm();
+    renderCaseList();
+    closeSidebar();
+  });
+  $('#settingsBtn').addEventListener('click', () => { openSettingsModal(); closeSidebar(); });
+  $('#menuBtn').addEventListener('click', () => {
+    $('#sidebar').classList.toggle('open');
+    $('#sidebarOverlay').classList.toggle('open');
+  });
+  $('#sidebarOverlay').addEventListener('click', closeSidebar);
+  setupInstallPrompt();
+  registerServiceWorker();
+}
+function closeSidebar() {
+  $('#sidebar')?.classList.remove('open');
+  $('#sidebarOverlay')?.classList.remove('open');
+}
+
+function openSettingsModal() {
+  const modal = $('#settingsModal');
+  modal.style.display = 'block';
+  modal.innerHTML = `
+    <div class="modal-backdrop" id="modalBackdrop">
+      <div class="modal">
+        <h2 class="serif">إعدادات المنصة</h2>
+        <div class="sub">المحرك المحلي المتقدم يعمل مجانًا بدون إنترنت. لتفاصيل أعمق يمكن تفعيل Groq أو Gemini (مجاني بحدود).</div>
+        <div class="field"><label>اسم المعمل</label><input type="text" id="set_labName" value="${escapeHtml(settings.labName)}"></div>
+        <div class="field"><label>اسم الطبيب المراجع</label><input type="text" id="set_doctorName" value="${escapeHtml(settings.doctorName)}"></div>
+        <div class="field"><label>محرك التشخيص</label>
+          <select id="set_engine">
+            <option value="local" ${settings.engine==='local'?'selected':''}>محلي متقدم (مجاني — مُوصى به)</option>
+            <option value="groq" ${settings.engine==='groq'?'selected':''}>Groq AI (أدق في السرد — يحتاج مفتاح مجاني)</option>
+            <option value="gemini" ${settings.engine==='gemini'?'selected':''}>Google Gemini (أدق في السرد — يحتاج مفتاح مجاني)</option>
+          </select>
+        </div>
+        <div class="field"><label>مفتاح Groq (console.groq.com)</label><input type="password" id="set_groqKey" value="${escapeHtml(settings.groqKey)}" placeholder="gsk_..."></div>
+        <div class="field"><label>مفتاح Gemini (aistudio.google.com)</label><input type="password" id="set_geminiKey" value="${escapeHtml(settings.geminiKey)}" placeholder="AIza..."></div>
+        <div class="small-note">المفاتيح تُحفظ على جهازك فقط.</div>
+        <div class="modal-actions">
+          <button class="btn-primary" id="saveSettingsBtn">حفظ</button>
+          <button class="btn-secondary" id="closeModalBtn">إغلاق</button>
+        </div>
+      </div>
+    </div>`;
+  $('#saveSettingsBtn').addEventListener('click', () => {
+    settings = {
+      engine: $('#set_engine').value,
+      groqKey: $('#set_groqKey').value.trim(),
+      geminiKey: $('#set_geminiKey').value.trim(),
+      labName: $('#set_labName').value.trim() || 'معامل RT',
+      doctorName: $('#set_doctorName').value.trim()
+    };
+    saveSettings(settings);
+    modal.style.display = 'none'; modal.innerHTML = '';
+  });
+  $('#closeModalBtn').addEventListener('click', () => { modal.style.display = 'none'; modal.innerHTML = ''; });
+  $('#modalBackdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'modalBackdrop') { modal.style.display = 'none'; modal.innerHTML = ''; }
+  });
+}
+
+let deferredInstallPrompt = null;
+function setupInstallPrompt() {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    showInstallBanner();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    document.querySelectorAll('.install-banner').forEach(b => b.remove());
+  });
+}
+function showInstallBanner() {
+  if (document.querySelector('.install-banner')) return;
+  const banner = document.createElement('div');
+  banner.className = 'install-banner';
+  banner.style.display = 'flex';
+  banner.innerHTML = '<span>ثبّت المنصة كتطبيق على الموبايل أو اللابتوب</span><button type="button" id="installAppBtn">تثبيت</button>';
+  const main = $('#main');
+  if (main?.firstChild) main.insertBefore(banner, main.firstChild);
+  else if (main) main.appendChild(banner);
+  $('#installAppBtn')?.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) {
+      alert('من Chrome/Edge: قائمة ⋮ ثم تثبيت التطبيق. على آيفون: مشاركة ← إضافة للشاشة الرئيسية.');
+      return;
+    }
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    banner.remove();
+  });
+}
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+}
+
+function renderCaseList() {
+  const list = $('#caseList');
+  const ids = Object.keys(cases).sort((a,b) => (cases[b].createdAt||0) - (cases[a].createdAt||0));
+  if (!ids.length) { list.innerHTML = '<div class="empty-hint">لا توجد حالات محفوظة بعد</div>'; return; }
+  list.innerHTML = '';
+  ids.forEach(id => {
+    const c = cases[id];
+    const div = document.createElement('button');
+    div.className = 'case-item' + (id === currentCaseId ? ' active' : '');
+    const statusLabel = c.status === 'reviewed' ? 'تمت المراجعة' : (c.status === 'pending' ? 'بانتظار المراجعة' : 'مسودة');
+    div.innerHTML = '<span>' + escapeHtml(c.patientCode || 'حالة بدون كود') + '</span><span class="meta">' + escapeHtml((c.complaint||'').slice(0,36) || 'بدون شكوى') + '</span><span class="status-pill ' + (c.status||'draft') + '">' + statusLabel + '</span>';
+    div.addEventListener('click', () => {
+      currentCaseId = id; currentDraft = null;
+      renderCaseView(id); renderCaseList(); closeSidebar();
+    });
+    list.appendChild(div);
+  });
+}
+
+function renderMainForm() {
+  const main = $('#main');
+  const d = currentDraft;
+  const engineLabel = settings.engine === 'local' ? 'محرك محلي متقدم' : settings.engine === 'groq' ? 'Groq AI' : 'Gemini AI';
+  main.innerHTML = `
+    <div class="top-note">
+      <span>ℹ️</span>
+      <div><b>أداة دعم قرار لمعامل RT.</b> ارفع PDF للتقرير لاستخراج النتائج تلقائيًا. المحرك: <b>${escapeHtml(engineLabel)}</b></div>
+    </div>
+    <div class="card">
+      <h2 class="serif">بيانات المريض</h2>
+      <div class="sub">يفضّل كود بدل الاسم الكامل</div>
+      <div class="row cols-3">
+        <div class="field"><label>كود / اسم المريض</label><input type="text" id="f_code" value="${escapeHtml(d.patientCode)}"></div>
+        <div class="field"><label>السن</label><input type="number" id="f_age" value="${escapeHtml(d.age)}" min="0" max="120"></div>
+        <div class="field"><label>النوع</label>
+          <select id="f_gender">
+            <option value="">اختر</option>
+            <option value="ذكر" ${d.gender==='ذكر'?'selected':''}>ذكر</option>
+            <option value="أنثى" ${d.gender==='أنثى'?'selected':''}>أنثى</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="serif">الشكوى والأعراض</h2>
+      <div class="field"><label>الشكوى الرئيسية</label><input type="text" id="f_complaint" value="${escapeHtml(d.complaint)}" placeholder="مثال: إرهاق ودوخة منذ أسبوعين"></div>
+      <label>الأعراض المختارة</label>
+      <div class="selected-chips" id="symptomChips"></div>
+      <div class="manual-add-row">
+        <input type="text" id="symptomManualInput" placeholder="أضف عرضًا غير موجود">
+        <button type="button" class="add-row-btn" id="symptomManualAdd">+ إضافة</button>
+      </div>
+      <div class="picker" id="symptomPicker"></div>
+      <div class="field"><label>ملاحظات إضافية</label><textarea id="f_symptoms">${escapeHtml(d.symptomsDetail)}</textarea></div>
+    </div>
+    <div class="card">
+      <h2 class="serif">نتائج التحاليل</h2>
+      <div class="sub">ارفع PDF أو صورة التقرير ليتم قراءة النص واستخراج القيم تلقائيًا، أو أدخل يدويًا</div>
+      <div class="upload-zone" id="uploadZone">📄 اضغط لرفع PDF أو صورة التقرير — سيتم استخراج النتائج تلقائيًا</div>
+      <input type="file" id="fileInput" accept="image/*,application/pdf,.pdf" style="display:none" multiple>
+      <div class="attachments" id="attachmentsList"></div>
+      <div class="extract-box" id="extractBox">
+        <h4>النص المستخرج من الملف</h4>
+        <div class="extract-stats" id="extractStats"></div>
+        <pre id="extractPre"></pre>
+        <button type="button" class="btn-primary" id="importLabsBtn">استيراد النتائج إلى الجدول</button>
+      </div>
+      <div style="margin-top:14px;" class="picker" id="labPicker"></div>
+      <div class="table-wrap">
+        <table id="labsTable">
+          <thead><tr><th>التحليل</th><th>القيمة</th><th>الوحدة</th><th>المعدل الطبيعي</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button type="button" class="add-row-btn" id="addLabRow">+ إضافة تحليل يدويًا</button>
+    </div>
+    <div class="card">
+      <h2 class="serif">الأدوية الحالية</h2>
+      <div class="picker" id="medPicker"></div>
+      <div class="table-wrap">
+        <table id="medsTable">
+          <thead><tr><th>اسم الدواء</th><th>الجرعة</th><th>عدد المرات</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button type="button" class="add-row-btn" id="addMedRow">+ إضافة دواء يدويًا</button>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn-primary" id="generateBtn">توليد التقرير الطبي المفصّل</button>
+    </div>
+    <div id="genStatus"></div>
+  `;
+  if (deferredInstallPrompt) showInstallBanner();
+  renderLabRows(d.labs);
+  renderMedRows(d.meds);
+  renderAttachments(d.attachments);
+  renderSymptomChips();
+  renderPicker('symptomPicker', SYMPTOMS_BY_SYSTEM, (val) => toggleSymptom(val), (val) => d.symptomsSelected.includes(val));
+  renderPicker('medPicker', MEDS_BY_CATEGORY, (val) => quickAddMed(val), () => false);
+  renderPicker('labPicker', LABS_BY_CATEGORY, (val) => quickAddLab(val), (val) => d.labs.some(l => l.test === val));
+  if (d.extractedText) showExtractUI(d.extractedText, parseLabsFromText(d.extractedText));
+
+  $('#addLabRow').addEventListener('click', () => { d.labs.push({test:'',value:'',unit:'',ref:''}); renderLabRows(d.labs); });
+  $('#addMedRow').addEventListener('click', () => { d.meds.push({name:'',dose:'',freq:''}); renderMedRows(d.meds); });
+  $('#uploadZone').addEventListener('click', () => $('#fileInput').click());
+  $('#fileInput').addEventListener('change', handleFileUpload);
+  $('#generateBtn').addEventListener('click', generateReport);
+  $('#symptomManualAdd').addEventListener('click', () => {
+    const inp = $('#symptomManualInput');
+    const val = inp.value.trim();
+    if (val && !d.symptomsSelected.includes(val)) { d.symptomsSelected.push(val); renderSymptomChips(); }
+    inp.value = '';
+  });
+  $('#importLabsBtn')?.addEventListener('click', () => {
+    const labs = parseLabsFromText(d.extractedText || '');
+    const n = applyExtractedLabs(labs);
+    alert(n ? ('تم استيراد ' + n + ' نتيجة') : 'لم يتم التعرف على نتائج جديدة');
+  });
+}
+
+function showExtractUI(text, labs) {
+  const box = $('#extractBox');
+  if (!box) return;
+  box.style.display = 'block';
+  $('#extractPre').textContent = text.slice(0, 4000) + (text.length > 4000 ? '\n…' : '');
+  $('#extractStats').textContent = labs.length
+    ? ('تم التعرف على ' + labs.length + ' تحليل: ' + labs.map(l => l.test + '=' + l.value).join('، '))
+    : 'لم يُتعرف تلقائيًا على تحاليل — يمكنك المراجعة اليدوية للنص';
+}
+
+function renderPicker(containerId, dataByGroup, onPick, isSelected) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  Object.keys(dataByGroup).forEach(group => {
+    const items = dataByGroup[group];
+    const details = document.createElement('details');
+    details.className = 'picker-group';
+    const selCount = items.filter(isSelected).length;
+    details.innerHTML = '<summary>' + group + ' <span class="count">' + (selCount ? selCount + ' مختار' : items.length + ' عنصر') + '</span></summary><div class="picker-options">' +
+      items.map(v => '<button type="button" class="pick-chip ' + (isSelected(v)?'selected':'') + '" data-v="' + escapeHtml(v) + '">' + escapeHtml(v) + '</button>').join('') + '</div>';
+    el.appendChild(details);
+  });
+  $$('.pick-chip', el).forEach(btn => btn.addEventListener('click', () => onPick(btn.dataset.v)));
+}
+function toggleSymptom(val) {
+  const d = currentDraft;
+  const i = d.symptomsSelected.indexOf(val);
+  if (i === -1) d.symptomsSelected.push(val); else d.symptomsSelected.splice(i, 1);
+  renderSymptomChips();
+  renderPicker('symptomPicker', SYMPTOMS_BY_SYSTEM, (v) => toggleSymptom(v), (v) => d.symptomsSelected.includes(v));
+}
+function renderSymptomChips() {
+  const d = currentDraft;
+  const wrap = $('#symptomChips');
+  if (!wrap) return;
+  if (!d.symptomsSelected.length) { wrap.innerHTML = '<span class="small-note">لم يتم اختيار أعراض بعد</span>'; return; }
+  wrap.innerHTML = d.symptomsSelected.map((v, i) => '<span class="selected-chip">' + escapeHtml(v) + '<button type="button" data-i="' + i + '">×</button></span>').join('');
+  $$('#symptomChips button').forEach(btn => btn.addEventListener('click', () => {
+    d.symptomsSelected.splice(+btn.dataset.i, 1); renderSymptomChips();
+    renderPicker('symptomPicker', SYMPTOMS_BY_SYSTEM, (v) => toggleSymptom(v), (v) => d.symptomsSelected.includes(v));
+  }));
+}
+function quickAddMed(name) {
+  currentDraft.meds.push({ name, dose: '', freq: '' });
+  renderMedRows(currentDraft.meds);
+}
+function quickAddLab(name) {
+  const d = currentDraft;
+  if (d.labs.some(l => l.test === name)) return;
+  if (d.labs.length === 1 && !d.labs[0].test) d.labs = [];
+  const ref = getRefFor(name, d.gender || $('#f_gender')?.value);
+  d.labs.push({ test: name, value: '', unit: ref ? ref.unit : '', ref: ref ? (ref.low + ' – ' + ref.high) : '' });
+  renderLabRows(d.labs);
+  renderPicker('labPicker', LABS_BY_CATEGORY, (v) => quickAddLab(v), (v) => d.labs.some(l => l.test === v));
+}
+function renderLabRows(labs) {
+  const tbody = $('#labsTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  labs.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><input type="text" value="' + escapeHtml(row.test) + '" data-f="test" data-i="' + i + '"></td>' +
+      '<td><input type="text" value="' + escapeHtml(row.value) + '" data-f="value" data-i="' + i + '"></td>' +
+      '<td><input type="text" value="' + escapeHtml(row.unit) + '" data-f="unit" data-i="' + i + '"></td>' +
+      '<td><input type="text" value="' + escapeHtml(row.ref) + '" data-f="ref" data-i="' + i + '"></td>' +
+      '<td>' + (labs.length > 1 ? '<button type="button" class="row-remove" data-i="' + i + '">×</button>' : '') + '</td>';
+    tbody.appendChild(tr);
+  });
+  $$('#labsTable input').forEach(inp => inp.addEventListener('input', e => { labs[+e.target.dataset.i][e.target.dataset.f] = e.target.value; }));
+  $$('#labsTable .row-remove').forEach(btn => btn.addEventListener('click', e => { labs.splice(+e.target.dataset.i, 1); renderLabRows(labs); }));
+}
+function renderMedRows(meds) {
+  const tbody = $('#medsTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  meds.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><input type="text" value="' + escapeHtml(row.name) + '" data-f="name" data-i="' + i + '"></td>' +
+      '<td><input type="text" value="' + escapeHtml(row.dose) + '" data-f="dose" data-i="' + i + '"></td>' +
+      '<td><input type="text" value="' + escapeHtml(row.freq) + '" data-f="freq" data-i="' + i + '"></td>' +
+      '<td>' + (meds.length > 1 ? '<button type="button" class="row-remove" data-i="' + i + '">×</button>' : '') + '</td>';
+    tbody.appendChild(tr);
+  });
+  $$('#medsTable input').forEach(inp => inp.addEventListener('input', e => { meds[+e.target.dataset.i][e.target.dataset.f] = e.target.value; }));
+  $$('#medsTable .row-remove').forEach(btn => btn.addEventListener('click', e => { meds.splice(+e.target.dataset.i, 1); renderMedRows(meds); }));
+}
+function renderAttachments(list) {
+  const wrap = $('#attachmentsList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  list.forEach((a, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'attachment-chip';
+    chip.innerHTML = '<a href="' + a.url + '" target="_blank" rel="noopener">' + escapeHtml(a.name) + '</a> <button type="button" class="row-remove" data-i="' + i + '">×</button>';
+    wrap.appendChild(chip);
+  });
+  $$('#attachmentsList .row-remove').forEach(btn => btn.addEventListener('click', e => {
+    currentDraft.attachments.splice(+e.target.dataset.i, 1);
+    renderAttachments(currentDraft.attachments);
+  }));
+}
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+function fileToArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+async function handleFileUpload(e) {
+  const files = Array.from(e.target.files || []);
+  const zone = $('#uploadZone');
+  if (zone) { zone.classList.add('busy'); zone.textContent = 'جارٍ قراءة الملف…'; }
+  for (const file of files) {
+    if (file.size > 8 * 1024 * 1024) {
+      alert('الملف "' + file.name + '" أكبر من 8 ميجا');
+      continue;
+    }
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      currentDraft.attachments.push({ url: dataUrl, name: file.name, contentType: file.type });
+      let text = '';
+      if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+        try {
+          const buf = await fileToArrayBuffer(file);
+          text = await extractTextFromPdf(buf);
+        } catch (err) {
+          console.error(err);
+          alert('تعذر قراءة نص PDF. تأكد أن الملف نصي وليس صورة ممسوحة فقط. يمكنك إدخال النتائج يدويًا.');
+        }
+      }
+      if (text && text.length > 20) {
+        currentDraft.extractedText = (currentDraft.extractedText ? currentDraft.extractedText + '\n' : '') + text;
+        const labs = parseLabsFromText(currentDraft.extractedText);
+        showExtractUI(currentDraft.extractedText, labs);
+        if (labs.length) {
+          const n = applyExtractedLabs(labs);
+          if (n) {
+            const stats = $('#extractStats');
+            if (stats) stats.textContent = 'تم استيراد ' + n + ' نتيجة تلقائيًا: ' + labs.map(l => l.test + '=' + l.value).join('، ');
+          }
+        }
+      } else if (file.type.startsWith('image/')) {
+        alert('تم إرفاق الصورة. قراءة النص من الصور (OCR) غير مفعّلة حاليًا — أدخل النتائج يدويًا أو ارفع PDF نصي.');
+      }
+    } catch (err) { console.error(err); }
+  }
+  renderAttachments(currentDraft.attachments);
+  if (zone) { zone.classList.remove('busy'); zone.textContent = '📄 اضغط لرفع PDF أو صورة التقرير — سيتم استخراج النتائج تلقائيًا'; }
+  e.target.value = '';
+}
+
+async function generateReport() {
+  const d = currentDraft;
+  d.patientCode = $('#f_code').value;
+  d.age = $('#f_age').value;
+  d.gender = $('#f_gender').value;
+  d.complaint = $('#f_complaint').value;
+  d.symptomsDetail = $('#f_symptoms').value;
+
+  if (!d.complaint && !d.symptomsDetail && !d.symptomsSelected.length && !(d.labs||[]).some(l => l.test && l.value)) {
+    alert('برجاء إدخال الشكوى أو عرض أو نتيجة تحليل');
+    return;
+  }
+
+  const genBtn = $('#generateBtn');
+  genBtn.disabled = true;
+  const statusEl = $('#genStatus');
+  statusEl.innerHTML = '<div class="loading-line"><div class="spinner"></div> جارٍ التحليل التفصيلي وتوليد التقرير…</div>';
+
+  try {
+    let result;
+    if (settings.engine === 'local') {
+      result = buildLocalReport(d);
+    } else if (settings.engine === 'groq') {
+      if (!settings.groqKey) { openSettingsModal(); throw Object.assign(new Error('no_key'), { code: 'no_key' }); }
+      result = await callGroq(buildAIPrompt(d));
+      const local = buildLocalReport(d);
+      result.lab_evaluation = local.lab_evaluation;
+      result.detail_blocks = local.detail_blocks;
+      result.severity_label = local.severity_label;
+      result.red_flags = [...new Set([...(result.red_flags||[]), ...(local.red_flags||[])])];
+      result.engine = 'Groq AI + محرك RT المحلي';
+    } else if (settings.engine === 'gemini') {
+      if (!settings.geminiKey) { openSettingsModal(); throw Object.assign(new Error('no_key'), { code: 'no_key' }); }
+      result = await callGemini(buildAIPrompt(d));
+      const local = buildLocalReport(d);
+      result.lab_evaluation = local.lab_evaluation;
+      result.detail_blocks = local.detail_blocks;
+      result.severity_label = local.severity_label;
+      result.red_flags = [...new Set([...(result.red_flags||[]), ...(local.red_flags||[])])];
+      result.engine = 'Gemini AI + محرك RT المحلي';
+    } else {
+      result = buildLocalReport(d);
+    }
+    d.report = result;
+    d.status = 'pending';
+    d.createdAt = d.createdAt || Date.now();
+    await saveCase(d);
+    genBtn.disabled = false;
+    statusEl.innerHTML = '';
+    renderCaseView(currentCaseId);
+    renderCaseList();
+  } catch (err) {
+    console.error(err);
+    genBtn.disabled = false;
+    let msg = 'تعذر توليد التقرير';
+    if (err.code === 'no_key' || err.code === 401) msg = 'مفتاح API غير صالح — استخدم المحرك المحلي أو راجع الإعدادات';
+    else if (err.code === 429) msg = 'تم تجاوز الحد المجاني — استخدم المحرك المحلي';
+    statusEl.innerHTML = '<div class="loading-line" style="color:var(--danger)">' + msg + '</div>';
+  }
+}
+
+async function saveCase(d) {
+  const id = currentCaseId || uid();
+  currentCaseId = id;
+  cases[id] = JSON.parse(JSON.stringify(d));
+  persistCasesToStorage();
+}
+
+function renderCaseView(id) {
+  const c = cases[id];
+  if (!c) return;
+  const main = $('#main');
+  const r = c.report;
+  const labsText = (c.labs||[]).filter(l => l.test).map(l => {
+    const ev = evaluateLab(l.test, l.value, c.gender);
+    const flagHtml = ev.flag ? '<span class="lab-flag ' + ev.status + '">' + ev.flag + '</span>' : '';
+    return '<tr><td>' + escapeHtml(l.test) + ' ' + flagHtml + '</td><td>' + escapeHtml(l.value) + ' ' + escapeHtml(l.unit||'') + '</td><td>' + escapeHtml(l.ref || ev.refText || '') + '</td></tr>';
+  }).join('');
+  const medsText = (c.meds||[]).filter(m => m.name).map(m => '<li>' + escapeHtml(m.name) + ' — ' + escapeHtml(m.dose) + ' ' + escapeHtml(m.freq) + '</li>').join('');
+
+  main.innerHTML = `
+    <div class="report-header">
+      <div>
+        <h2 class="serif" style="margin-bottom:4px;">${escapeHtml(c.patientCode || 'حالة بدون كود')}</h2>
+        <div class="patient-tag">${c.age ? 'السن: '+escapeHtml(c.age)+' · ' : ''}${escapeHtml(c.gender||'')} · ${escapeHtml(settings.labName)}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-pdf" id="pdfBtn">📄 حفظ PDF</button>
+        <button type="button" class="btn-secondary" id="backBtn">+ حالة جديدة</button>
+      </div>
+    </div>
+    <div id="reportPrintArea">
+    <div class="card">
+      <h2 class="serif" style="font-size:17px;">الشكوى والبيانات المدخلة</h2>
+      <p><b>الشكوى:</b> ${escapeHtml(c.complaint)}</p>
+      ${(c.symptomsSelected&&c.symptomsSelected.length) ? '<p><b>الأعراض:</b> ' + c.symptomsSelected.map(escapeHtml).join('، ') + '</p>' : ''}
+      ${c.symptomsDetail ? '<p>' + escapeHtml(c.symptomsDetail) + '</p>' : ''}
+      ${labsText ? '<div class="table-wrap" style="margin-top:10px;"><table><thead><tr><th>التحليل</th><th>القيمة</th><th>المعدل</th></tr></thead><tbody>' + labsText + '</tbody></table></div>' : ''}
+      ${medsText ? '<div style="margin-top:12px;"><b>الأدوية:</b><ul>' + medsText + '</ul></div>' : ''}
+    </div>
+    ${r ? `
+    <div class="card">
+      <div class="engine-badge">✓ ${escapeHtml(r.engine || 'محرك التشخيص')}</div>
+      ${r.severity_label ? '<div class="small-note" style="margin-bottom:10px;"><b>درجة الأهمية:</b> ' + escapeHtml(r.severity_label) + '</div>' : ''}
+      <div class="disclaimer">تقرير دعم قرار لمعامل RT — يجب مراجعته واعتماده من الطبيب المختص. لا يُعد بديلاً عن التقييم الطبي المباشر.</div>
+      ${r.red_flags && r.red_flags.length ? '<div class="report-section"><h3 class="serif">علامات تستدعي انتباهًا عاجلاً</h3><div class="flag-list">' + r.red_flags.map(f=>'<div class="flag-item">' + escapeHtml(f) + '</div>').join('') + '</div></div>' : ''}
+      ${r.detail_blocks && r.detail_blocks.length ? '<div class="report-section"><h3 class="serif">تفاصيل النتائج غير الطبيعية</h3>' + r.detail_blocks.map(b => '<div class="detail-box ' + (b.severity>=3?'sev-high':b.severity===2?'sev-mod':'sev-low') + '"><b>' + escapeHtml(b.title) + '</b><br>' + escapeHtml(b.text) + '</div>').join('') + '</div>' : ''}
+      ${r.lab_evaluation && r.lab_evaluation.length && !(r.detail_blocks&&r.detail_blocks.length) ? '<div class="report-section"><h3 class="serif">تقييم النتائج المخبرية</h3>' + r.lab_evaluation.map(a=>'<div class="abnormal-item"><b>' + escapeHtml(a.nameAr||a.test) + '</b>: ' + escapeHtml(a.value) + ' ' + escapeHtml(a.unit||'') + ' — <b>' + escapeHtml(a.flag) + '</b> (المرجع: ' + escapeHtml(a.ref||'') + ')</div>').join('') + '</div>' : ''}
+      <div class="report-section"><h3 class="serif">شرح الحالة للمريض</h3><p>${escapeHtml(r.summary_for_patient||'')}</p></div>
+      <div class="report-section"><h3 class="serif">التفسير الإكلينيكي المفصّل</h3><p>${escapeHtml(r.clinical_interpretation||'')}</p></div>
+      ${r.differential_diagnosis && r.differential_diagnosis.length ? '<div class="report-section"><h3 class="serif">التشخيص التفريقي</h3><ul>' + r.differential_diagnosis.map(x=>'<li>' + escapeHtml(x) + '</li>').join('') + '</ul></div>' : ''}
+      ${r.recommended_further_tests && r.recommended_further_tests.length ? '<div class="report-section"><h3 class="serif">فحوصات مقترحة</h3><ul>' + r.recommended_further_tests.map(x=>'<li>' + escapeHtml(x) + '</li>').join('') + '</ul></div>' : ''}
+      <div class="report-section"><h3 class="serif">التوجيه العلاجي المبدئي</h3><p>${escapeHtml(r.therapeutic_guidance||'')}</p></div>
+      <div class="report-section"><h3 class="serif">التوصيات الغذائية</h3><p>${escapeHtml(r.nutritional_guidance||'')}</p></div>
+      <div class="review-bar">
+        <div class="review-status ${c.status==='reviewed'?'reviewed':'pending'}">
+          ${c.status==='reviewed' ? '✓ تمت المراجعة والاعتماد' + (settings.doctorName ? ' — د. ' + escapeHtml(settings.doctorName) : '') : 'بانتظار مراجعة الطبيب'}
+        </div>
+        ${c.status!=='reviewed' ? '<button type="button" class="btn-primary" id="reviewBtn">اعتماد التقرير بعد المراجعة</button>' : ''}
+      </div>
+      <div class="small-note" style="margin-top:12px;">${escapeHtml(settings.labName)} · منصة التشخيص الذكي · ${new Date(c.createdAt||Date.now()).toLocaleString('ar-EG')}</div>
+    </div>` : '<div class="card"><p class="small-note">لم يتم توليد تقرير بعد.</p></div>'}
+    </div>
+  `;
+  $('#backBtn').addEventListener('click', () => {
+    currentCaseId = null; currentDraft = emptyDraft(); renderMainForm(); renderCaseList();
+  });
+  $('#pdfBtn')?.addEventListener('click', () => exportPDF(c));
+  const reviewBtn = $('#reviewBtn');
+  if (reviewBtn) reviewBtn.addEventListener('click', async () => {
+    c.status = 'reviewed'; c.reviewedAt = Date.now();
+    await saveCase(c); renderCaseView(id); renderCaseList();
+  });
+}
+
+function exportPDF(c) {
+  const el = document.getElementById('reportPrintArea');
+  if (!el) return;
+  const name = (c.patientCode || 'report').replace(/[^\w\u0600-\u06FF\-]+/g, '_');
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: 'RT_Labs_' + name + '_' + new Date().toISOString().slice(0,10) + '.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+  const btn = $('#pdfBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'جاري التصدير…'; }
+  html2pdf().set(opt).from(el).save().then(() => {
+    if (btn) { btn.disabled = false; btn.textContent = '📄 حفظ PDF'; }
+  }).catch(() => {
+    if (btn) { btn.disabled = false; btn.textContent = '📄 حفظ PDF'; }
+    alert('تعذر تصدير PDF — جرّب طباعة المتصفح');
+  });
+}
+
+init();
+</script>
+</body>
+</html>
